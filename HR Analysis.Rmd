@@ -1,0 +1,280 @@
+---
+title: "HR"
+output: html_document
+---
+
+
+```{r}
+rm(list = ls(all=TRUE))
+```
+
+```{r}
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+library(GGally)
+```
+
+```{r}
+setwd("F:\\FD\\R\\HR")
+```
+
+```{r}
+Data <- read.csv("HR_comma_sep.csv",header = TRUE,sep = ",")
+
+```
+
+```{r}
+str(Data)
+```
+```{r}
+Data <- rename(Data, Dept= sales)
+Data_dept<-Data %>%
+   filter(left == 1)%>%
+  select(Dept,left)%>%
+  group_by(Dept)%>%
+ summarize(left =n())%>%
+  arrange(desc(left))
+```
+
+```{r}
+##Number of employees by Department
+
+ Data_dept$Dept <- factor(Data_dept$Dept , levels =  Data_dept$Dept[order(Data_dept$left)])
+
+# plot  employees by Department
+ggplot(Data_dept, aes(x=Dept,y=left,col=Dept,fill=Dept))+
+  geom_bar(stat = "identity",width = .75)+
+  coord_flip()+
+  theme(axis.line = element_line(color = "blue",size=1.25))+
+  theme(legend.position="none")+
+    theme(panel.background=element_blank())+
+  scale_x_discrete("Department") + 
+  scale_y_continuous("Nos of Employees")+
+  ggtitle("Nos of Employees by Department")
+```
+
+```{r}
+##Employee satisfaction by Tenure
+
+Data_sats<-Data %>%
+  group_by(Dept,time_spend_company)%>%
+  summarise(satisfaction=mean(satisfaction_level))
+  
+ggplot(Data_sats, aes(x=time_spend_company,y=satisfaction, col=time_spend_company,fill=time_spend_company))+
+  geom_line(size=1)+
+  theme(axis.line = element_line(color = "blue",size=1.25))+
+  theme(legend.position="bottom")+
+      facet_grid(~Dept)+
+  scale_x_continuous("Tenure of Employee") + 
+  scale_y_continuous("Satisfaction level")+
+  ggtitle("Employee satisfaction by Tenure")
+```
+
+```{r}
+##Employee Satisfaction of current and left by tenure
+
+Data_sat<-Data %>%
+  group_by(left,Dept, time_spend_company)%>%
+  summarise(satisfaction=mean(satisfaction_level))
+  
+ggplot(Data_sat, aes(x=time_spend_company,y=satisfaction, col=Dept,group=Dept))+
+  geom_line(size=1)+
+  theme(axis.line = element_line(color = "blue",size=1.25))+
+  theme(legend.position="bottom")+
+      facet_grid(~left)+
+  scale_x_continuous("Tenure of Employee") + 
+  scale_y_continuous("Satisfaction level")+
+  ggtitle("Employee satisfaction by Tenure of left and current employees")
+```
+
+```{r}
+##Employee salary range by Department
+
+Data_d <- Data%>%filter(left==1)
+
+# salary range by Department
+
+
+ggplot(Data_d, aes(x=salary,col=salary, fill=salary))+
+  geom_bar(width = .7)+
+  facet_grid(~Dept)+
+  theme(axis.line = element_line(color = "blue",size=1.05))+
+  theme(legend.position="bottom")+
+  scale_x_discrete("Salary level ") + 
+  scale_y_continuous("Nos of Employees")+
+  ggtitle("Employees by Salary range")
+```
+
+```{r}
+##Employee Satisfaction and last evaluation by Department
+
+# last evalution vs satisfaction
+
+
+Data_evaluation<-Data %>%
+  group_by(Dept,time_spend_company,salary,left,number_project)%>%
+  summarise(satisfaction=mean(satisfaction_level),evaluation=mean(last_evaluation))
+
+ggplot(Data_evaluation, aes(x=evaluation,y=satisfaction,col=Dept))+
+  geom_jitter()+
+  geom_smooth(method = "lm")+
+  theme(axis.line = element_line(color = "blue",size=1.05))+
+  theme(legend.position="none")+
+    theme(panel.background=element_blank())+
+  facet_grid(~Dept)+
+  ggtitle("Satisfaction and last evaluation")
+
+```
+
+```{r}
+##Average monthly hours of current and past employees
+
+ggplot(Data, aes(x=average_montly_hours,color=Dept,fill=Dept ))+
+  geom_histogram(binwidth = 3)+
+  theme(axis.line = element_line(color = "blue",size=1.25))+
+  theme(legend.position="bottom")+
+      facet_grid(~left)+
+  scale_x_continuous("Average Monthly Hours") + 
+  scale_y_continuous("No of employees ")+
+  ggtitle("Average monthly hours of employees")
+
+```
+
+```{r}
+##Number of work accidents by Department
+
+Data_w <-Data%>%filter(Work_accident>0)
+
+ggplot(Data_w, aes(x=Work_accident,color=Dept,fill=Dept ))+
+  geom_bar(width = .7)+
+  theme(axis.line = element_line(color = "blue",size=1.25))+
+  theme(legend.position="bottom")+
+      facet_grid(~left)+
+  scale_x_discrete("Work accidents") + 
+  scale_y_continuous("No of employees ")+
+  ggtitle("work accidents of employees")
+```
+
+```{r}
+##corelation of satisfaction level of past employees is negative
+
+data_c <- Data
+num_values <- data_c[,1:8]
+cormat <- cor(num_values)
+corrplot(cormat, method = "ellipse")
+```
+
+```{r}
+##principal components of six variables is 86 %
+
+data_p <- Data[,1:8]
+
+pr.com <- prcomp(data_p,scale. = TRUE)
+summary(pr.com)
+```
+
+```{r}
+pr.var <- (pr.com$sdev)^2
+pve <- pr.var/sum(pr.var)
+
+par(mfrow = c(2, 2))
+
+plot(pve, xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+
+plot(cumsum(pve), xlab = "Principal Component",
+     ylab = "Cumulative Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+
+prop_varex <- pr.var/sum(pr.var)
+plot(prop_varex, xlab = "Principal Component",
+             ylab = "Proportion of Variance Explained",
+             type = "b")
+```
+
+```{r}
+##top three principal components
+
+left <- Data[,7]
+PCA <- as.data.frame(cbind(left,pr.com$x))
+PCA$left <- as.factor(left)
+
+ggpairs(data=PCA,columns = 2:4, ggplot2::aes(color=left))
+
+```
+
+```{r}
+##Decision tree with rpart. Prediction Accuracy is 97%
+
+# Shuffle the dataset, name the result shuffled
+n <- nrow(Data)
+shuffled <- Data[sample(n),]
+
+# Split the data in train and test
+train_indices<-1:round(0.7 * n)
+train<-shuffled[train_indices,]
+test_indices<-(round(0.7 * n) + 1):n
+test<-shuffled[test_indices,]
+
+#set seed 
+set.seed(1)
+
+# tree model of staff that have left
+tree<- rpart(left~.,train,method = "class",parms = list(split = "information"))
+
+
+# Draw the decision tree
+fancyRpartPlot(tree)
+
+```
+
+```{r}
+# Prune the tree: pruned
+pruned<-prune(tree,cp=0.01)
+
+
+# Predict the values of the test set: pred
+pred <- predict(pruned, test, type = "class")
+
+
+# Construct the confusion matrix: conf
+conf<-table(test$left,pred)
+
+conf
+```
+
+```{r}
+# Print out the accuracy
+sum(diag(conf))/sum(conf)
+
+```
+
+```{r}
+tree
+```
+
+```{r}
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
